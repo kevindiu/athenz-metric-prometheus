@@ -51,6 +51,7 @@ open ./target/site/clover/index.html
     athenz.metrics.prometheus.label.request_domain_name.enable=false
     athenz.metrics.prometheus.label.principal_domain_name.enable=false
     ```
+1. verify setup: `curl localhost:8181/metrics`
 1. add job in your Prometheus server
     ```yaml
     scrape_configs:
