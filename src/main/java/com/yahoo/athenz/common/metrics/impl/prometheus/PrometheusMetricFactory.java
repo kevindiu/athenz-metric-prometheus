@@ -21,6 +21,14 @@ public class PrometheusMetricFactory implements MetricFactory {
     public static final String HTTP_SERVER_ENABLE_PROP = "http_server.enable";
     public static final String HTTP_SERVER_PORT_PROP = "http_server.port";
 
+    /*
+    public static final String PUSH_ENABLE_PROP = "pushgateway.enable";
+    public static final String PUSH_ADDRESS_PROP = "pushgateway.address";
+    public static final String PUSH_JOB_NAME_PROP = "pushgateway.job_name";
+    public static final String PUSH_INSTANCE_NAME_PROP = "pushgateway.instance_name";
+    public static final String PUSH_PERIOD_PROP = "pushgateway.period_second";
+    */
+
     public static final String NAMESPACE_PROP = "namespace";
     public static final String LABEL_REQUEST_DOMAIN_NAME_ENABLE_PROP = "label.request_domain_name.enable";
     public static final String LABEL_PRINCIPAL_DOMAIN_NAME_ENABLE_PROP = "label.principal_domain_name.enable";
@@ -74,6 +82,20 @@ public class PrometheusMetricFactory implements MetricFactory {
                 throw new RuntimeException(e);
             }
         }
+        /*
+        if (Boolean.valueOf(getProperty(PUSH_ENABLE_PROP, "false"))) {
+            String hostname = "localhost";
+            try {
+                hostname = InetAddress.getLocalHost().getHostName();
+            } catch (UnknownHostException ex) {}
+            String pushGatewayAddress = getProperty(PUSH_ADDRESS_PROP, "localhost:9091");
+            String jobName = getProperty(PUSH_JOB_NAME_PROP, "athenz_server");
+            String instanceName = getProperty(PUSH_INSTANCE_NAME_PROP, hostname);
+            int interval = Integer.valueOf(getProperty(PUSH_PERIOD_PROP, "10"));
+
+            exporter = new PrometheusPushExporter(pushGatewayAddress, registry, jobName, instanceName, interval);
+        }
+        */
 
         // prometheus metric class
         String namespace = getProperty(NAMESPACE_PROP, "athenz_server");
