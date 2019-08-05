@@ -25,19 +25,8 @@ public class PrometheusMetricFactory implements MetricFactory {
     public static final String LABEL_REQUEST_DOMAIN_NAME_ENABLE_PROP = "label.request_domain_name.enable";
     public static final String LABEL_PRINCIPAL_DOMAIN_NAME_ENABLE_PROP = "label.principal_domain_name.enable";
 
-    /**
-     * Get system property related to PrometheusMetric. Property name: ${prefix}.${key}
-     * @param key key without prefix
-     * @param def default value
-     * @return system property value
-     */
-    public static String getProperty(String key, String def) {
-        return System.getProperty(SYSTEM_PROP_PREFIX + key, def);
-    }
-
     @Override
     public Metric create() {
-
         boolean isEnable = Boolean.valueOf(getProperty(ENABLE_PROP, "true"));
         if (!isEnable) {
             return new NoOpMetric();
@@ -83,4 +72,13 @@ public class PrometheusMetricFactory implements MetricFactory {
 
     }
 
+    /**
+     * Get system property related to PrometheusMetric. Property name: ${prefix}.${key}
+     * @param key key without prefix
+     * @param def default value
+     * @return system property value
+     */
+    public static String getProperty(String key, String def) {
+        return System.getProperty(SYSTEM_PROP_PREFIX + key, def);
+    }
 }

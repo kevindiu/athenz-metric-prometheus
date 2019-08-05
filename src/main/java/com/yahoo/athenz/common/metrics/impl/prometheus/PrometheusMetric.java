@@ -27,9 +27,15 @@ public class PrometheusMetric implements Metric {
     private boolean isLabelRequestDomainNameEnable;
     private boolean isLabelPrincipalDomainNameEnable;
 
+    /**
+     * @param registry CollectorRegistry of all metrics
+     * @param exporter Prometheus metrics exporter
+     * @param namespace prefix of all metrics
+     */
     public PrometheusMetric(CollectorRegistry registry, ConcurrentMap<String, Collector> namesToCollectors, PrometheusExporter exporter, String namespace) {
         this(registry, namesToCollectors, exporter, namespace, false, false);
     }
+
     /**
      * @param registry CollectorRegistry of all metrics
      * @param exporter Prometheus metrics exporter
@@ -47,19 +53,83 @@ public class PrometheusMetric implements Metric {
         this.isLabelPrincipalDomainNameEnable = isLabelPrincipalDomainNameEnable;
     }
 
-    /**
-     * Create counter metric name that follows prometheus standard
-     * @param metricName Name of the counter metric
-     */
-    private String normalizeCounterMetricName(String metricName) {
-        return metricName + METRIC_NAME_DELIMITER + COUNTER_SUFFIX;
+    @Override
+    public void increment(String metricName) {
+        increment(metricName, null, 1);
     }
-    /**
-     * Create timer metric name that follows prometheus standard
-     * @param metricName Name of the timer metric
-     */
-    private String normalizeTimerMetricName(String metricName) {
-        return metricName + METRIC_NAME_DELIMITER + TIMER_UNIT;
+
+    @Override
+    public void increment(String metricName, String requestDomainName) {
+        increment(metricName, requestDomainName, 1);
+    }
+
+    @Override
+    public void increment(String metricName, String requestDomainName, String principalDomainName) {
+        increment(metricName, requestDomainName, principalDomainName, 1);
+    }
+
+    @Override
+    public void increment(String metricName, String requestDomainName, int count) {
+        increment(metricName, requestDomainName, null, count);
+    }
+
+    @Override
+    public void increment(String metricName, String requestDomainName, String principalDomainName, int count) {
+        // prometheus does not allow null labels
+        requestDomainName = (this.isLabelRequestDomainNameEnable) ? Objects.toString(requestDomainName, "") : "";
+        principalDomainName = (this.isLabelPrincipalDomainNameEnable) ? Objects.toString(principalDomainName, "") : "";
+
+        metricName = this.normalizeCounterMetricName(metricName);
+        Counter counter = (Counter) createOrGetCollector(metricName, Counter.build());
+        counter.labels(requestDomainName, principalDomainName).inc(count);
+    }
+
+    @Override
+    public Object startTiming(String metricName, String requestDomainName) {
+        return startTiming(metricName, requestDomainName, null);
+    }
+
+    @Override
+    public Object startTiming(String metricName, String requestDomainName, String principalDomainName) {
+        // prometheus does not allow null labels
+        requestDomainName = (this.isLabelRequestDomainNameEnable) ? Objects.toString(requestDomainName, "") : "";
+        principalDomainName = (this.isLabelPrincipalDomainNameEnable) ? Objects.toString(principalDomainName, "") : "";
+
+        metricName = this.normalizeTimerMetricName(metricName);
+        Summary summary = (Summary) createOrGetCollector(metricName, Summary.build()
+        // .quantile(0.5, 0.05)
+        // .quantile(0.9, 0.01)
+        );
+        return summary.labels(requestDomainName, principalDomainName).startTimer();
+    }
+
+    @Override
+    public void stopTiming(Object timerObj) {
+        if (timerObj == null) {
+            return;
+        }
+        Summary.Timer timer = (Summary.Timer) timerObj;
+        timer.observeDuration();
+    }
+
+    @Override
+    public void stopTiming(Object timerObj, String requestDomainName, String principalDomainName) {
+        stopTiming(timerObj);
+    }
+
+    @Override
+    public void flush() {
+        if (this.exporter != null) {
+            this.exporter.flush();
+        }
+    }
+
+    @Override
+    public void quit() {
+        if (this.exporter != null) {
+            this.exporter.flush();
+            this.exporter.quit();
+        }
     }
 
     /**
@@ -96,77 +166,19 @@ public class PrometheusMetric implements Metric {
         return collector;
     }
 
-    @Override
-    public void increment(String metricName) {
-        increment(metricName, null, 1);
-    }
-    @Override
-    public void increment(String metricName, String requestDomainName) {
-        increment(metricName, requestDomainName, 1);
-    }
-    @Override
-    public void increment(String metricName, String requestDomainName, String principalDomainName) {
-        increment(metricName, requestDomainName, principalDomainName, 1);
-    }
-    @Override
-    public void increment(String metricName, String requestDomainName, int count) {
-        increment(metricName, requestDomainName, null, count);
-    }
-    @Override
-    public void increment(String metricName, String requestDomainName, String principalDomainName, int count) {
-        // prometheus does not allow null labels
-        requestDomainName = (this.isLabelRequestDomainNameEnable) ? Objects.toString(requestDomainName, "") : "";
-        principalDomainName = (this.isLabelPrincipalDomainNameEnable) ? Objects.toString(principalDomainName, "") : "";
-
-        metricName = this.normalizeCounterMetricName(metricName);
-        Counter counter = (Counter) createOrGetCollector(metricName, Counter.build());
-        counter.labels(requestDomainName, principalDomainName).inc(count);
+    /**
+     * Create counter metric name that follows prometheus standard
+     * @param metricName Name of the counter metric
+     */
+    private String normalizeCounterMetricName(String metricName) {
+        return metricName + METRIC_NAME_DELIMITER + COUNTER_SUFFIX;
     }
 
-    @Override
-    public Object startTiming(String metricName, String requestDomainName) {
-        return startTiming(metricName, requestDomainName, null);
+    /**
+     * Create timer metric name that follows prometheus standard
+     * @param metricName Name of the timer metric
+     */
+    private String normalizeTimerMetricName(String metricName) {
+        return metricName + METRIC_NAME_DELIMITER + TIMER_UNIT;
     }
-    @Override
-    public Object startTiming(String metricName, String requestDomainName, String principalDomainName) {
-        // prometheus does not allow null labels
-        requestDomainName = (this.isLabelRequestDomainNameEnable) ? Objects.toString(requestDomainName, "") : "";
-        principalDomainName = (this.isLabelPrincipalDomainNameEnable) ? Objects.toString(principalDomainName, "") : "";
-
-        metricName = this.normalizeTimerMetricName(metricName);
-        Summary summary = (Summary) createOrGetCollector(metricName, Summary.build()
-        // .quantile(0.5, 0.05)
-        // .quantile(0.9, 0.01)
-        );
-        return summary.labels(requestDomainName, principalDomainName).startTimer();
-    }
-
-    @Override
-    public void stopTiming(Object timerObj) {
-        if (timerObj == null) {
-            return;
-        }
-        Summary.Timer timer = (Summary.Timer) timerObj;
-        timer.observeDuration();
-    }
-    @Override
-    public void stopTiming(Object timerObj, String requestDomainName, String principalDomainName) {
-        stopTiming(timerObj);
-    }
-
-    @Override
-    public void flush() {
-        if (this.exporter != null) {
-            this.exporter.flush();
-        }
-    }
-
-    @Override
-    public void quit() {
-        if (this.exporter != null) {
-            this.exporter.flush();
-            this.exporter.quit();
-        }
-    }
-
 }
